@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SISTEMA YAZARETH</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+</head>
+<body>
+    <div class="contenedor-cuadro">
+        <h2 id="titulo">GESTORIA YAZARETH</h2>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul class="flash-messages">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <form action="/merge_pdfs" method="post" enctype="multipart/form-data">
+            <input type="file" name="original_pdfs" accept="application/pdf" multiple required><br><br>
+
+            <label for="reverso">¿Agregar reverso?</label>
+            <select name="reverso" id="reverso">
+                <option value="no">No</option>
+                <option value="si">Sí</option>
+            </select><br><br>
+
+            <label for="folio">¿Agregar folio?</label>
+            <select name="folio" id="folio">
+                <option value="no">No</option>
+                <option value="si">Sí</option>
+            </select><br><br>
+
+            <button type="submit">Procesar PDFs</button>
+        </form>
+
+        <br>
+        <form action="/logout" method="post">
+            <button type="submit">Cerrar sesión</button>
+        </form>
+    </div>
+</body>
+</html>
