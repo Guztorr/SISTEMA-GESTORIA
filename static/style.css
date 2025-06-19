@@ -38,19 +38,6 @@ input:focus {
     border-color: #02dffc;
 }
 
-select {
-    font-size: 18px;
-    color: #e0e0e0;
-    background-color: #1c2733;
-    border: 2px solid #00ff6a;
-    padding: 10px 15px;
-    border-radius: 8px;
-    width: 100%;
-    max-width: 400px;
-    box-sizing: border-box;
-    margin: 10px 0;
-}
-
 button {
     background-color: #02dffc;
     margin: 40px auto 30px auto;
@@ -71,6 +58,19 @@ button:hover {
     box-shadow: 0 6px 20px rgba(0, 255, 106, 0.8);
 }
 
+select {
+    font-size: 18px;
+    color: #e0e0e0;
+    background-color: #1c2733;
+    border: 2px solid #00ff6a;
+    padding: 10px 15px;
+    border-radius: 8px;
+    outline: none;
+    width: 100%;
+    max-width: 400px;
+    margin: 10px 0;
+}
+
 .contenedor-cuadro {
     background: rgba(28, 39, 51, 0.85);
     color: #e0e0e0;
@@ -84,34 +84,9 @@ button:hover {
     box-sizing: border-box;
 }
 
-/* LOGIN STYLES */
-.login-form {
-    text-align: center;
-}
-
-.login-form h2 {
-    font-size: 32px;
-    margin-bottom: 20px;
-    color: #00ff6a;
-    text-shadow: 0 0 5px rgba(0, 255, 106, 0.6);
-}
-
-.login-form input[type="text"],
-.login-form input[type="password"] {
-    max-width: 100%;
-    width: 100%;
-    margin-bottom: 15px;
-}
-
-.login-form button {
-    width: 100%;
-}
-
-.flash-messages {
-    list-style: none;
-    padding: 0;
-    margin: 15px 0;
-    color: #ff4f4f;
+p.error {
+    color: red;
     font-weight: bold;
     text-align: center;
+    margin-top: 10px;
 }
