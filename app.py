@@ -110,11 +110,22 @@ def generar_qr_con_texto(curp, mediabox):
     # Dibuja el QR
     c.drawImage(img, x, y, width=qr_size, height=qr_size, mask='auto')
 
-    # Texto CURP tamaño igual al QR, debajo del QR
-    font_size = qr_size  # aproximadamente 85 pt
-    c.setFont("Helvetica", font_size)
+    # Calcula tamaño máximo de fuente para que el texto quepa dentro de qr_size
+    max_width = qr_size
+    font_name = "Helvetica"
+    font_size = 20  # punto inicial para iterar
+
+    while True:
+        text_width = c.stringWidth(curp, font_name, font_size)
+        if text_width <= max_width or font_size <= 1:
+            break
+        font_size -= 0.5
+
+    # Posiciona el texto debajo del QR, alineado a la izquierda del QR
     text_x = x
     text_y = y - font_size - margin_text
+
+    c.setFont(font_name, font_size)
     c.drawString(text_x, text_y, curp)
 
     c.save()
