@@ -4,6 +4,7 @@ from reportlab.pdfgen import canvas
 from reportlab.graphics.barcode import code128
 from reportlab.lib.units import cm
 from reportlab.lib.pagesizes import letter
+from reportlab.lib.utils import ImageReader
 from PIL import Image
 import qrcode
 import io
@@ -93,11 +94,12 @@ def generar_qr_con_texto(curp, mediabox):
     buffer = io.BytesIO()
     qr_img.save(buffer, format="PNG")
     buffer.seek(0)
+    img = ImageReader(buffer)
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(mediabox.width, mediabox.height))
     x = 1.5 * cm
     y = mediabox.height - 5 * cm
-    c.drawImage(buffer, x, y, width=3*cm, height=3*cm, mask='auto')
+    c.drawImage(img, x, y, width=3*cm, height=3*cm, mask='auto')
     c.setFont("Helvetica", 10)
     c.drawCentredString(x + 1.5*cm, y - 12, curp)
     c.save()
@@ -183,6 +185,8 @@ def merge_pdfs():
                     qr_overlay = generar_qr_con_texto(curp, base_copy.mediabox)
                     reverso_page.merge_page(qr_overlay)
                     mensajes.append(f"{original_file.filename}: QR con CURP agregado")
+                else:
+                    mensajes.append(f"{original_file.filename}: CURP no detectada, no se agregó QR")
                 writer.add_page(reverso_page)
                 mensajes.append(f"{original_file.filename}: Reverso agregado ({estado_detectado})")
             else:
