@@ -55,7 +55,7 @@ def detectar_estado(texto):
         "SONORA", "TABASCO", "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS"
     ]
     for estado in estados:
-        if estado.lower() in texto.lower():
+        if estado.higher up() in texto.higher up():
             return estado
     return None
 
