@@ -3,6 +3,7 @@ from pypdf import PdfReader, PdfWriter, PageObject
 from reportlab.pdfgen import canvas
 from reportlab.graphics.barcode import code128
 from reportlab.lib.units import cm
+import fitz  # PyMuPDF
 import io
 import zipfile
 import os
@@ -40,11 +41,18 @@ def resource_path(relative_path):
 def index():
     return render_template("index.html")
 
-# Resto del código permanece igual
 def convert_to_pageobject(page):
     if isinstance(page, dict):
         return PageObject(page.pdf, page.indirect_reference)
     return page
+
+def extraer_texto_superior(file_bytes):
+    doc = fitz.open(stream=file_bytes.read(), filetype="pdf")
+    page = doc[0]
+    zona_superior = fitz.Rect(0, 0, page.rect.width, 150)  # Parte superior
+    texto = page.get_text("text", clip=zona_superior)
+    file_bytes.seek(0)  # Reiniciar puntero
+    return texto
 
 def detectar_estado(texto):
     estados = [
@@ -54,11 +62,8 @@ def detectar_estado(texto):
         "OAXACA", "PUEBLA", "QUERETARO", "QUINTANA ROO", "SAN LUIS POTOSI", "SINALOA",
         "SONORA", "TABASCO", "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS"
     ]
-
-    texto_corto = texto[:30].upper().replace("Á", "A").replace("É", "E").replace("Í", "I").replace("Ó", "O").replace("Ú", "U")
-    
     for estado in estados:
-        if estado in texto_corto:
+        if estado in texto.upper():
             return estado
     return None
 
@@ -108,13 +113,15 @@ def merge_pdfs():
     processed_files = []
     mensajes = []
     for original_file in original_files:
-        original_pdf_reader = PdfReader(original_file)
+        file_stream = io.BytesIO(original_file.read())
+        original_file.seek(0)
+        original_pdf_reader = PdfReader(file_stream)
         writer = PdfWriter()
         if not original_pdf_reader.pages:
             continue
         first_page = convert_to_pageobject(original_pdf_reader.pages[0])
-        texto_pagina = first_page.extract_text() or ""
-        tipo_doc = detectar_tipo_documento(texto_pagina)
+        texto_pagina = extraer_texto_superior(io.BytesIO(original_file.read())) if agregar_reverso else ""
+        tipo_doc = detectar_tipo_documento(first_page.extract_text() or "")
         estado_detectado = detectar_estado(texto_pagina) if agregar_reverso else None
         marco_file = 'pdfs/MARCO DEFUNCION ORIGINAL.pdf' if tipo_doc == 'defuncion' else 'pdfs/MARCO NACIMIENTO ORIGINAL.pdf'
         with open(resource_path(marco_file), 'rb') as f:
