@@ -10,17 +10,6 @@
 <body>
     <div class="contenedor-cuadro">
         <h2 id="titulo">GESTORIA YAZARETH</h2>
-
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <ul class="flash-messages">
-                {% for message in messages %}
-                    <li>{{ message }}</li>
-                {% endfor %}
-                </ul>
-            {% endif %}
-        {% endwith %}
-
         <form action="/merge_pdfs" method="post" enctype="multipart/form-data">
             <input type="file" name="original_pdfs" accept="application/pdf" multiple required><br><br>
 
@@ -37,11 +26,6 @@
             </select><br><br>
 
             <button type="submit">Procesar PDFs</button>
-        </form>
-
-        <br>
-        <form action="/logout" method="post">
-            <button type="submit">Cerrar sesión</button>
         </form>
     </div>
 </body>
