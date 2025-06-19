@@ -1,200 +1,97 @@
-from flask import Flask, request, send_file, render_template, redirect, url_for, session, Response
-from pypdf import PdfReader, PdfWriter, PageObject
-from reportlab.pdfgen import canvas
-from reportlab.graphics.barcode import code128
-from reportlab.lib.units import cm
-import io
-import zipfile
-import os
-import random
-import sys
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "supersecretkey")
+body {
+    font-family: 'Roboto', Arial, sans-serif;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: #e0e0e0;
+    margin: 0;
+    padding: 0;
+}
 
-USERNAME = os.environ.get("APP_USER", "admin")
-PASSWORD = os.environ.get("APP_PASSWORD", "1234")
+h2#titulo {
+    color: #00ff6a;
+    text-align: center;
+    font-size: 48px;
+    margin: 30px 0 60px 0;
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(0, 255, 106, 0.8);
+    letter-spacing: 1.5px;
+}
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        if request.form.get('username') == USERNAME and request.form.get('password') == PASSWORD:
-            session['authenticated'] = True
-            return redirect(url_for('index'))
-        return render_template("login.html", error="Credenciales incorrectas")
-    return render_template("login.html")
+input, select {
+    font-size: 18px;
+    color: #e0e0e0;
+    background-color: #1c2733;
+    border: 2px solid #00ff6a;
+    padding: 10px 15px;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.3s ease;
+    width: 100%;
+    max-width: 400px;
+    box-sizing: border-box;
+    margin: 10px 0;
+}
 
-@app.route('/logout', methods=['POST'])
-def logout():
-    session.pop('authenticated', None)
-    return redirect(url_for('login'))
+input:focus, select:focus {
+    border-color: #02dffc;
+}
 
-@app.before_request
-def require_login():
-    if request.endpoint not in ('login', 'static') and not session.get('authenticated'):
-        return redirect(url_for('login'))
+button {
+    background-color: #02dffc;
+    margin: 40px auto 30px auto;
+    display: block;
+    border-radius: 15px;
+    color: #000e14;
+    padding: 15px 40px;
+    font-size: 20px;
+    font-family: 'Roboto', Arial, sans-serif;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(2, 223, 252, 0.6);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
 
-def resource_path(relative_path):
-    if hasattr(sys, '_MEIPASS'):
-        base_path = sys._MEIPASS
-    else:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
+button:hover {
+    background-color: #00ff6a;
+    box-shadow: 0 6px 20px rgba(0, 255, 106, 0.8);
+}
 
-@app.route('/')
-def index():
-    return render_template("index.html")
+.contenedor-cuadro {
+    background: rgba(28, 39, 51, 0.85);
+    color: #e0e0e0;
+    border-radius: 20px;
+    padding: 60px 40px;
+    width: 90%;
+    max-width: 700px;
+    margin: 50px auto;
+    box-shadow: 0 0 15px 3px rgba(0, 255, 106, 0.5);
+    backdrop-filter: blur(10px);
+    box-sizing: border-box;
+}
 
-def convert_to_pageobject(page):
-    if isinstance(page, dict):
-        return PageObject(page.pdf, page.indirect_reference)
-    return page
+.error {
+    color: #ff4c4c;
+    margin-bottom: 15px;
+    text-align: center;
+}
 
-def detectar_estado(texto):
-    estados = [
-        "AGUASCALIENTES", "BAJA CALIFORNIA", "BAJA CALIFORNIA SUR", "CAMPECHE", "CHIAPAS", "CHIHUAHUA",
-        "CIUDAD DE MEXICO", "COAHUILA", "COLIMA", "DURANGO", "MEXICO", "GUANAJUATO",
-        "GUERRERO", "HIDALGO", "JALISCO", "MICHOACAN", "MORELOS", "NAYARIT", "NUEVO LEON",
-        "OAXACA", "PUEBLA", "QUERETARO", "QUINTANA ROO", "SAN LUIS POTOSI", "SINALOA",
-        "SONORA", "TABASCO", "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS"
-    ]
+.btn-logout {
+    background-color: #ff4c4c;
+    margin: 20px auto 0 auto;
+    display: block;
+    border-radius: 15px;
+    color: white;
+    padding: 12px 40px;
+    font-size: 18px;
+    font-family: 'Roboto', Arial, sans-serif;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 76, 76, 0.6);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
 
-    # Extraer texto de una región específica
-    # Coordenadas recomendadas para la región superior central
-    x0, y0 = 100, 700   # esquina inferior izquierda
-    x1, y1 = 500, 770   # esquina superior derecha
-
-    # Aquí extraemos sólo la sección del texto que está dentro de esas coordenadas (si disponible)
-    texto_region = ""
-
-    if hasattr(texto, 'extract_text'):  # Por si texto es página o similar
-        texto_region = texto.extract_text()
-    else:
-        texto_region = texto
-
-    texto_region = texto_region.upper()
-
-    for estado in estados:
-        if estado in texto_region:
-            return estado
-    return None
-
-def detectar_tipo_documento(texto):
-    texto = texto.lower()
-    if any(p in texto for p in ['defunción', 'falleció', 'muerto']):
-        return 'defuncion'
-    return 'nacimiento'
-
-def generar_folio_pdf(mediabox):
-    folio_num = ''.join(str(random.randint(0, 9)) for _ in range(8))
-    packet = io.BytesIO()
-    c = canvas.Canvas(packet, pagesize=(mediabox.width, mediabox.height))
-    margin_x = 0 * cm
-    margin_y = 2.0 * cm
-    block_width = 6 * cm
-    y_start = mediabox.height - margin_y
-    c.setFont("Helvetica-Bold", 14)
-    c.setFillColorRGB(1, 0, 0)
-    text_folio = "FOLIO"
-    text_folio_width = c.stringWidth(text_folio, "Helvetica-Bold", 14)
-    folio_x = margin_x + (block_width - text_folio_width) / 2
-    c.drawString(folio_x, y_start, text_folio)
-    c.setFont("Helvetica", 16)
-    c.setFillColorRGB(0, 0, 0)
-    folio_num_width = c.stringWidth(folio_num, "Helvetica", 16)
-    folio_num_x = margin_x + (block_width - folio_num_width) / 2
-    c.drawString(folio_num_x, y_start - 18, folio_num)
-    barcode = code128.Code128(folio_num, barHeight=25, barWidth=0.6)
-    barcode_x = margin_x + (block_width - barcode.width) / 2
-    barcode_y = y_start - 18 - 30
-    barcode.drawOn(c, barcode_x, barcode_y)
-    c.save()
-    packet.seek(0)
-    overlay_pdf = PdfReader(packet)
-    folio_page = overlay_pdf.pages[0]
-    folio_page.mediabox = mediabox
-    return folio_page
-
-@app.route('/merge_pdfs', methods=['POST'])
-def merge_pdfs():
-    original_files = request.files.getlist('original_pdfs')
-    agregar_reverso = request.form.get('reverso', 'no').lower() == 'si'
-    agregar_folio = request.form.get('folio', 'no').lower() == 'si'
-    if len(original_files) > 20:
-        return "No puedes subir más de 20 archivos.", 400
-    processed_files = []
-    mensajes = []
-    for original_file in original_files:
-        original_pdf_reader = PdfReader(original_file)
-        writer = PdfWriter()
-        if not original_pdf_reader.pages:
-            continue
-        first_page = convert_to_pageobject(original_pdf_reader.pages[0])
-        texto_pagina = first_page.extract_text() or ""
-        tipo_doc = detectar_tipo_documento(texto_pagina)
-        estado_detectado = detectar_estado(texto_pagina) if agregar_reverso else None
-        marco_file = 'pdfs/MARCO DEFUNCION ORIGINAL.pdf' if tipo_doc == 'defuncion' else 'pdfs/MARCO NACIMIENTO ORIGINAL.pdf'
-        with open(resource_path(marco_file), 'rb') as f:
-            base_pdf_bytes = f.read()
-        base_overlay = PdfReader(io.BytesIO(base_pdf_bytes)).pages[0]
-        base_overlay.mediabox = first_page.mediabox
-        base_copy = PageObject.create_blank_page(
-            width=first_page.mediabox.width,
-            height=first_page.mediabox.height
-        )
-        base_copy.merge_page(base_overlay)
-        base_copy.merge_page(first_page)
-        if agregar_folio:
-            folio_overlay = generar_folio_pdf(base_copy.mediabox)
-            base_copy.merge_page(folio_overlay)
-            mensajes.append(f"{original_file.filename}: Folio generado")
-        writer.add_page(base_copy)
-        for i in range(1, len(original_pdf_reader.pages)):
-            writer.add_page(original_pdf_reader.pages[i])
-        if estado_detectado:
-            reverso_path = resource_path(f'pdfs/reversos/{estado_detectado}.pdf')
-            if os.path.exists(reverso_path):
-                with open(reverso_path, 'rb') as f:
-                    reverso_reader = PdfReader(io.BytesIO(f.read()))
-                reverso_page = reverso_reader.pages[0]
-                reverso_page.mediabox = base_copy.mediabox
-                writer.add_page(reverso_page)
-                mensajes.append(f"{original_file.filename}: Reverso agregado ({estado_detectado})")
-            else:
-                mensajes.append(f"{original_file.filename}: Estado detectado pero reverso no encontrado")
-        elif agregar_reverso:
-            mensajes.append(f"{original_file.filename}: No se detectó estado para reverso")
-        output_pdf = io.BytesIO()
-        writer.write(output_pdf)
-        output_pdf.seek(0)
-        processed_files.append({
-            "filename": f"Act_{original_file.filename}",
-            "content": output_pdf
-        })
-    if not processed_files:
-        return "No se procesó ningún archivo válido.", 400
-    for m in mensajes:
-        print(m)
-    if len(processed_files) == 1:
-        return send_file(
-            processed_files[0]["content"],
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=processed_files[0]["filename"]
-        )
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, 'w') as zipf:
-        for file in processed_files:
-            file["content"].seek(0)
-            zipf.writestr(file["filename"], file["content"].read())
-    zip_buffer.seek(0)
-    return send_file(
-        zip_buffer,
-        mimetype='application/zip',
-        as_attachment=True,
-        download_name='pdf_combinados.zip'
-    )
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
+.btn-logout:hover {
+    background-color: #e63946;
+    box-shadow: 0 6px 20px rgba(230, 57, 70, 0.8);
+}
