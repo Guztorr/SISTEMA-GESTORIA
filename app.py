@@ -1,18 +1,19 @@
-from flask import Flask, request, send_file, render_template, redirect, url_for, session, Response
+from flask import Flask, request, send_file, render_template, redirect, url_for, session
 from pypdf import PdfReader, PdfWriter, PageObject
 from reportlab.pdfgen import canvas
 from reportlab.graphics.barcode import code128
 from reportlab.lib.units import cm
-import fitz  # PyMuPDF
 import io
 import zipfile
 import os
 import random
 import sys
+import unicodedata
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "supersecretkey")
 
+# Credenciales por entorno o predeterminadas
 USERNAME = os.environ.get("APP_USER", "admin")
 PASSWORD = os.environ.get("APP_PASSWORD", "1234")
 
@@ -27,8 +28,17 @@ def login():
 
 @app.before_request
 def require_login():
-    if request.endpoint not in ('login', 'static') and not session.get('authenticated'):
+    allowed_routes = ['login', 'static', 'favicon']
+    if request.endpoint not in allowed_routes and not session.get('authenticated'):
         return redirect(url_for('login'))
+
+@app.route('/')
+def index():
+    return render_template("index.html")
+
+@app.route('/favicon.ico')
+def favicon():
+    return redirect(url_for('static', filename='favicon.ico'))
 
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
@@ -37,22 +47,13 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
-@app.route('/')
-def index():
-    return render_template("index.html")
-
 def convert_to_pageobject(page):
     if isinstance(page, dict):
         return PageObject(page.pdf, page.indirect_reference)
     return page
 
-def extraer_texto_superior(file_bytes):
-    doc = fitz.open(stream=file_bytes.read(), filetype="pdf")
-    page = doc[0]
-    zona_superior = fitz.Rect(0, 0, page.rect.width, 150)  # Parte superior
-    texto = page.get_text("text", clip=zona_superior)
-    file_bytes.seek(0)  # Reiniciar puntero
-    return texto
+def limpiar_texto(texto):
+    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn').upper()
 
 def detectar_estado(texto):
     estados = [
@@ -62,8 +63,9 @@ def detectar_estado(texto):
         "OAXACA", "PUEBLA", "QUERETARO", "QUINTANA ROO", "SAN LUIS POTOSI", "SINALOA",
         "SONORA", "TABASCO", "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS"
     ]
+    texto_limpio = limpiar_texto(texto[:500])
     for estado in estados:
-        if estado in texto.upper():
+        if estado in texto_limpio:
             return estado
     return None
 
@@ -112,20 +114,22 @@ def merge_pdfs():
         return "No puedes subir más de 20 archivos.", 400
     processed_files = []
     mensajes = []
+
     for original_file in original_files:
-        file_stream = io.BytesIO(original_file.read())
-        original_file.seek(0)
-        original_pdf_reader = PdfReader(file_stream)
+        original_pdf_reader = PdfReader(original_file)
         writer = PdfWriter()
         if not original_pdf_reader.pages:
             continue
+
         first_page = convert_to_pageobject(original_pdf_reader.pages[0])
-        texto_pagina = extraer_texto_superior(io.BytesIO(original_file.read())) if agregar_reverso else ""
-        tipo_doc = detectar_tipo_documento(first_page.extract_text() or "")
+        texto_pagina = first_page.extract_text() or ""
+        tipo_doc = detectar_tipo_documento(texto_pagina)
         estado_detectado = detectar_estado(texto_pagina) if agregar_reverso else None
+
         marco_file = 'pdfs/MARCO DEFUNCION ORIGINAL.pdf' if tipo_doc == 'defuncion' else 'pdfs/MARCO NACIMIENTO ORIGINAL.pdf'
         with open(resource_path(marco_file), 'rb') as f:
             base_pdf_bytes = f.read()
+
         base_overlay = PdfReader(io.BytesIO(base_pdf_bytes)).pages[0]
         base_overlay.mediabox = first_page.mediabox
         base_copy = PageObject.create_blank_page(
@@ -134,13 +138,17 @@ def merge_pdfs():
         )
         base_copy.merge_page(base_overlay)
         base_copy.merge_page(first_page)
+
         if agregar_folio:
             folio_overlay = generar_folio_pdf(base_copy.mediabox)
             base_copy.merge_page(folio_overlay)
             mensajes.append(f"{original_file.filename}: Folio generado")
+
         writer.add_page(base_copy)
+
         for i in range(1, len(original_pdf_reader.pages)):
             writer.add_page(original_pdf_reader.pages[i])
+
         if estado_detectado:
             reverso_path = resource_path(f'pdfs/reversos/{estado_detectado}.pdf')
             if os.path.exists(reverso_path):
@@ -154,6 +162,7 @@ def merge_pdfs():
                 mensajes.append(f"{original_file.filename}: Estado detectado pero reverso no encontrado")
         elif agregar_reverso:
             mensajes.append(f"{original_file.filename}: No se detectó estado para reverso")
+
         output_pdf = io.BytesIO()
         writer.write(output_pdf)
         output_pdf.seek(0)
@@ -161,10 +170,13 @@ def merge_pdfs():
             "filename": f"Act_{original_file.filename}",
             "content": output_pdf
         })
+
     if not processed_files:
         return "No se procesó ningún archivo válido.", 400
+
     for m in mensajes:
         print(m)
+
     if len(processed_files) == 1:
         return send_file(
             processed_files[0]["content"],
@@ -172,12 +184,14 @@ def merge_pdfs():
             as_attachment=True,
             download_name=processed_files[0]["filename"]
         )
+
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w') as zipf:
         for file in processed_files:
             file["content"].seek(0)
             zipf.writestr(file["filename"], file["content"].read())
     zip_buffer.seek(0)
+
     return send_file(
         zip_buffer,
         mimetype='application/zip',
