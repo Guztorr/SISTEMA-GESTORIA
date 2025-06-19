@@ -90,20 +90,29 @@ def extraer_curp(texto):
     return match.group(0) if match else None
 
 def generar_qr_con_texto(curp, mediabox):
+    qr_size = 3 * cm
+    margin_left = 0.5 * cm
+    margin_top = 0.5 * cm
+
     qr_img = qrcode.make(curp)
     buffer = io.BytesIO()
     qr_img.save(buffer, format="PNG")
     buffer.seek(0)
     img = ImageReader(buffer)
+
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(mediabox.width, mediabox.height))
-    x = 1.5 * cm
-    y = mediabox.height - 5 * cm
-    c.drawImage(img, x, y, width=3*cm, height=3*cm, mask='auto')
+
+    x = margin_left
+    y = mediabox.height - qr_size - margin_top
+
+    c.drawImage(img, x, y, width=qr_size, height=qr_size, mask='auto')
     c.setFont("Helvetica", 10)
-    c.drawCentredString(x + 1.5*cm, y - 12, curp)
+    c.drawString(x, y - 12, curp)  # texto justo debajo del QR, alineado a la izquierda
+
     c.save()
     packet.seek(0)
+
     qr_pdf = PdfReader(packet)
     return qr_pdf.pages[0]
 
