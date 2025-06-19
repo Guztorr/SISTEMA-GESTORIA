@@ -16,7 +16,7 @@ app = Flask(__name__)
 def require_password():
     password = os.environ.get("APP_PASSWORD")
     if request.path.startswith("/static") or "favicon.ico" in request.path:
-        return  # permite recursos estáticos sin contraseña
+        return
     if request.args.get("auth") == password:
         return
     return Response(
@@ -24,8 +24,7 @@ def require_password():
         "<form method='get'>"
         "Contraseña: <input type='password' name='auth'>"
         "<button type='submit'>Entrar</button>"
-        "</form>",
-        status=401
+        "</form>", status=401
     )
 
 def resource_path(relative_path):
@@ -144,10 +143,15 @@ def merge_pdfs():
         texto_pagina = first_page.extract_text() or ""
         tipo_doc = detectar_tipo_documento(texto_pagina)
         estado_detectado = detectar_estado(texto_pagina) if agregar_reverso else None
+
+        # DEBUGGING
+        print(f"[DEBUG] PDF: {original_file.filename}")
+        print(f"[DEBUG] Estado detectado: {estado_detectado}")
+
         marco_file = 'pdfs/MARCO DEFUNCION ORIGINAL.pdf' if tipo_doc == 'defuncion' else 'pdfs/MARCO NACIMIENTO ORIGINAL.pdf'
         with open(resource_path(marco_file), 'rb') as f:
-            base_pdf_bytes = f.read()
-        base_overlay = PdfReader(io.BytesIO(base_pdf_bytes)).pages[0]
+            base_overlay = PdfReader(io.BytesIO(f.read())).pages[0]
+
         base_overlay.mediabox = first_page.mediabox
         base_copy = PageObject.create_blank_page(
             width=first_page.mediabox.width,
@@ -155,15 +159,21 @@ def merge_pdfs():
         )
         base_copy.merge_page(base_overlay)
         base_copy.merge_page(first_page)
+
         if agregar_folio:
             folio_overlay = generar_folio_pdf(base_copy.mediabox)
             base_copy.merge_page(folio_overlay)
             mensajes.append(f"{original_file.filename}: Folio generado")
+
         writer.add_page(base_copy)
+
         for i in range(1, len(original_pdf_reader.pages)):
             writer.add_page(original_pdf_reader.pages[i])
+
         if estado_detectado:
             reverso_path = resource_path(f'pdfs/reversos/{estado_detectado}.pdf')
+            print(f"[DEBUG] Buscando archivo reverso en: {reverso_path}")
+
             if os.path.exists(reverso_path):
                 with open(reverso_path, 'rb') as f:
                     reverso_reader = PdfReader(io.BytesIO(f.read()))
@@ -175,6 +185,7 @@ def merge_pdfs():
                 mensajes.append(f"{original_file.filename}: Estado detectado pero reverso no encontrado")
         elif agregar_reverso:
             mensajes.append(f"{original_file.filename}: No se detectó estado para reverso")
+
         output_pdf = io.BytesIO()
         writer.write(output_pdf)
         output_pdf.seek(0)
@@ -182,10 +193,13 @@ def merge_pdfs():
             "filename": f"Act_{original_file.filename}",
             "content": output_pdf
         })
+
     if not processed_files:
         return "No se procesó ningún archivo válido.", 400
+
     for m in mensajes:
         print(m)
+
     if len(processed_files) == 1:
         return send_file(
             processed_files[0]["content"],
@@ -193,11 +207,13 @@ def merge_pdfs():
             as_attachment=True,
             download_name=processed_files[0]["filename"]
         )
+
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w') as zipf:
         for file in processed_files:
             file["content"].seek(0)
             zipf.writestr(file["filename"], file["content"].read())
+
     zip_buffer.seek(0)
     return send_file(
         zip_buffer,
@@ -206,7 +222,7 @@ def merge_pdfs():
         download_name='pdf_combinados.zip'
     )
 
-# Ejecutar con puerto dinámico para Render
+# Render necesita puerto dinámico
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
