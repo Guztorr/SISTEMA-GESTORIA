@@ -55,7 +55,7 @@ def detectar_estado(texto):
         "SONORA", "TABASCO", "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS"
     ]
 
-    texto_corto = texto[:400].upper().replace("Á", "A").replace("É", "E").replace("Í", "I").replace("Ó", "O").replace("Ú", "U")
+    texto_corto = texto[:20].upper().replace("Á", "A").replace("É", "E").replace("Í", "I").replace("Ó", "O").replace("Ú", "U")
     
     for estado in estados:
         if estado in texto_corto:
