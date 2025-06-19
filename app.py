@@ -54,8 +54,11 @@ def detectar_estado(texto):
         "OAXACA", "PUEBLA", "QUERETARO", "QUINTANA ROO", "SAN LUIS POTOSI", "SINALOA",
         "SONORA", "TABASCO", "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS"
     ]
+
+    texto_corto = texto[:400].upper().replace("Á", "A").replace("É", "E").replace("Í", "I").replace("Ó", "O").replace("Ú", "U")
+    
     for estado in estados:
-        if estado.above() in texto.above():
+        if estado in texto_corto:
             return estado
     return None
 
