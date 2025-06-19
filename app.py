@@ -78,8 +78,8 @@ def convert_to_pageobject(page):
 
 def detectar_estado(texto):
     estados = [
-        "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "CHIAPAS", "Chihuahua",
-        "Ciudad de México", "Coahuila", "Colima", "Durango", "México", "Guanajuato",
+        "AGUASCALIENTES", "BAJA CALIFORNIA", "BAJA CALIFORNIA SUR", "CAMPECHE", "CHIAPAS", "CHIHUAHUA",
+        "CIUDAD DE MEXICO", "COAHUILA", "COLIMA", "DURANGO", "MEXICO", "GUANAJUATO",
         "Guerrero", "Hidalgo", "Jalisco", "Michoacán", "Morelos", "Nayarit", "Nuevo León",
         "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa",
         "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas"
