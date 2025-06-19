@@ -6,30 +6,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SISTEMA YAZARETH</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 </head>
 <body>
     <div class="contenedor-cuadro">
         <h2 id="titulo">GESTORÍA YAZARETH</h2>
         <form action="{{ url_for('merge_pdfs') }}" method="post" enctype="multipart/form-data">
-            <input type="file" name="original_pdfs" accept="application/pdf" multiple required><br><br>
-
+            <input type="file" name="original_pdfs" accept="application/pdf" multiple required><br>
+            
             <label for="reverso">¿Agregar reverso?</label>
             <select name="reverso" id="reverso">
                 <option value="no">No</option>
                 <option value="si">Sí</option>
-            </select><br><br>
+            </select><br>
 
             <label for="folio">¿Agregar folio?</label>
             <select name="folio" id="folio">
                 <option value="no">No</option>
                 <option value="si">Sí</option>
-            </select><br><br>
+            </select><br>
 
             <button type="submit">Procesar PDFs</button>
-        </form>
-        <form action="{{ url_for('logout') }}" method="post" style="margin-top: 20px;">
-            <button type="submit">Cerrar sesión</button>
         </form>
     </div>
 </body>
