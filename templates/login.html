@@ -1,22 +1,21 @@
-<!-- templates/login.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Iniciar Sesión - Sistema Yazareth</title>
+    <title>Login - SISTEMA YAZARETH</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 <body>
     <div class="contenedor-cuadro">
-        <h2 id="titulo">Iniciar Sesión</h2>
-        <form method="POST" action="{{ url_for('login') }}">
-            <input type="text" name="username" placeholder="Usuario" required><br>
-            <input type="password" name="password" placeholder="Contraseña" required><br>
-            {% if error %}
-                <p style="color: red; font-weight: bold;">{{ error }}</p>
-            {% endif %}
+        <h2>Login</h2>
+        {% if error %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+        <form action="{{ url_for('login') }}" method="post">
+            <input type="text" name="username" placeholder="Usuario" required autofocus>
+            <input type="password" name="password" placeholder="Contraseña" required>
             <button type="submit">Entrar</button>
         </form>
     </div>
