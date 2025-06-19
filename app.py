@@ -59,24 +59,21 @@ def detectar_estado(texto):
         "SONORA", "TABASCO", "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS"
     ]
 
-    # Extraer texto de una región específica
-    # Coordenadas recomendadas para la región superior central
-    x0, y0 = 100, 700   # esquina inferior izquierda
-    x1, y1 = 500, 770   # esquina superior derecha
-
-    # Aquí extraemos sólo la sección del texto que está dentro de esas coordenadas (si disponible)
-    texto_region = ""
-
-    if hasattr(texto, 'extract_text'):  # Por si texto es página o similar
-        texto_region = texto.extract_text()
-    else:
-        texto_region = texto
-
+    texto_region = texto.extract_text() if hasattr(texto, 'extract_text') else str(texto)
     texto_region = texto_region.upper()
 
+    # << MEJORA: detección de estado más precisa
+    for estado in estados:
+        if f"CODIGO CIVIL DEL ESTADO DE {estado}" in texto_region:
+            return estado
+        if f"DEL ESTADO DE {estado}" in texto_region:
+            return estado
+
+    # Búsqueda general si lo anterior no funcionó
     for estado in estados:
         if estado in texto_region:
             return estado
+
     return None
 
 def detectar_tipo_documento(texto):
@@ -132,7 +129,7 @@ def merge_pdfs():
         first_page = convert_to_pageobject(original_pdf_reader.pages[0])
         texto_pagina = first_page.extract_text() or ""
         tipo_doc = detectar_tipo_documento(texto_pagina)
-        estado_detectado = detectar_estado(texto_pagina) if agregar_reverso else None
+        estado_detectado = detectar_estado(first_page) if agregar_reverso else None
         marco_file = 'pdfs/MARCO DEFUNCION ORIGINAL.pdf' if tipo_doc == 'defuncion' else 'pdfs/MARCO NACIMIENTO ORIGINAL.pdf'
         with open(resource_path(marco_file), 'rb') as f:
             base_pdf_bytes = f.read()
