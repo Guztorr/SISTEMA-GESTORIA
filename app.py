@@ -93,6 +93,7 @@ def generar_qr_con_texto(curp, mediabox):
     qr_size = 3 * cm
     margin_left = 0.5 * cm
     margin_top = 0.5 * cm
+    margin_text = 0.1 * cm  # espacio entre QR y texto
 
     qr_img = qrcode.make(curp)
     buffer = io.BytesIO()
@@ -106,9 +107,15 @@ def generar_qr_con_texto(curp, mediabox):
     x = margin_left
     y = mediabox.height - qr_size - margin_top
 
+    # Dibuja el QR
     c.drawImage(img, x, y, width=qr_size, height=qr_size, mask='auto')
-    c.setFont("Helvetica", 10)
-    c.drawString(x, y - 12, curp)  # texto justo debajo del QR, alineado a la izquierda
+
+    # Texto CURP tamaño igual al QR, debajo del QR
+    font_size = qr_size  # aproximadamente 85 pt
+    c.setFont("Helvetica", font_size)
+    text_x = x
+    text_y = y - font_size - margin_text
+    c.drawString(text_x, text_y, curp)
 
     c.save()
     packet.seek(0)
