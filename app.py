@@ -3,6 +3,9 @@ from pypdf import PdfReader, PdfWriter, PageObject
 from reportlab.pdfgen import canvas
 from reportlab.graphics.barcode import code128
 from reportlab.lib.units import cm
+from reportlab.lib.pagesizes import letter
+from PIL import Image
+import qrcode
 import io
 import zipfile
 import os
@@ -62,14 +65,12 @@ def detectar_estado(texto):
     texto_region = texto.extract_text() if hasattr(texto, 'extract_text') else str(texto)
     texto_region = texto_region.upper()
 
-    # << MEJORA: detección de estado más precisa
     for estado in estados:
         if f"CODIGO CIVIL DEL ESTADO DE {estado}" in texto_region:
             return estado
         if f"DEL ESTADO DE {estado}" in texto_region:
             return estado
 
-    # Búsqueda general si lo anterior no funcionó
     for estado in estados:
         if estado in texto_region:
             return estado
@@ -81,6 +82,28 @@ def detectar_tipo_documento(texto):
     if any(p in texto for p in ['defunción', 'falleció', 'muerto']):
         return 'defuncion'
     return 'nacimiento'
+
+def extraer_curp(texto):
+    import re
+    match = re.search(r'\b[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}\b', texto)
+    return match.group(0) if match else None
+
+def generar_qr_con_texto(curp, mediabox):
+    qr_img = qrcode.make(curp)
+    buffer = io.BytesIO()
+    qr_img.save(buffer, format="PNG")
+    buffer.seek(0)
+    packet = io.BytesIO()
+    c = canvas.Canvas(packet, pagesize=(mediabox.width, mediabox.height))
+    x = 1.5 * cm
+    y = mediabox.height - 5 * cm
+    c.drawImage(buffer, x, y, width=3*cm, height=3*cm, mask='auto')
+    c.setFont("Helvetica", 10)
+    c.drawCentredString(x + 1.5*cm, y - 12, curp)
+    c.save()
+    packet.seek(0)
+    qr_pdf = PdfReader(packet)
+    return qr_pdf.pages[0]
 
 def generar_folio_pdf(mediabox):
     folio_num = ''.join(str(random.randint(0, 9)) for _ in range(8))
@@ -130,6 +153,7 @@ def merge_pdfs():
         texto_pagina = first_page.extract_text() or ""
         tipo_doc = detectar_tipo_documento(texto_pagina)
         estado_detectado = detectar_estado(first_page) if agregar_reverso else None
+        curp = extraer_curp(texto_pagina)
         marco_file = 'pdfs/MARCO DEFUNCION ORIGINAL.pdf' if tipo_doc == 'defuncion' else 'pdfs/MARCO NACIMIENTO ORIGINAL.pdf'
         with open(resource_path(marco_file), 'rb') as f:
             base_pdf_bytes = f.read()
@@ -155,6 +179,10 @@ def merge_pdfs():
                     reverso_reader = PdfReader(io.BytesIO(f.read()))
                 reverso_page = reverso_reader.pages[0]
                 reverso_page.mediabox = base_copy.mediabox
+                if curp:
+                    qr_overlay = generar_qr_con_texto(curp, base_copy.mediabox)
+                    reverso_page.merge_page(qr_overlay)
+                    mensajes.append(f"{original_file.filename}: QR con CURP agregado")
                 writer.add_page(reverso_page)
                 mensajes.append(f"{original_file.filename}: Reverso agregado ({estado_detectado})")
             else:
