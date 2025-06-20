@@ -107,12 +107,7 @@ def extraer_curp(texto):
 
 
 def generar_qr_con_texto(curp, mediabox):
-    import io
     from reportlab.lib.utils import ImageReader
-    import qrcode
-    from pypdf import PdfReader
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.units import cm
 
     qr_img = qrcode.make(curp)
     buffer = io.BytesIO()
@@ -120,16 +115,18 @@ def generar_qr_con_texto(curp, mediabox):
     buffer.seek(0)
     img = ImageReader(buffer)
 
-    # 🧭 Coordenadas calculadas para colocar el QR en la posición exacta del reverso original
+    # Tamaño del QR
     qr_size = 3.2 * cm
+
+    # 🔁 Posición en esquina superior izquierda (ajustable según necesidades)
     x = 0.9 * cm
-    y = mediabox.height - 0.6 * cm
+    y = mediabox.height - qr_size - 0.6 * cm  # margen desde arriba
 
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(mediabox.width, mediabox.height))
     c.drawImage(img, x, y, width=qr_size, height=qr_size, mask='auto')
 
-    # Texto CURP centrado debajo del QR
+    # Texto centrado debajo del QR
     c.setFont("Helvetica", 9)
     c.drawCentredString(x + qr_size / 2, y - 12, curp)
     c.save()
