@@ -121,9 +121,9 @@ def generar_qr_con_texto(curp, mediabox):
     img = ImageReader(buffer)
 
     # 🧭 Coordenadas calculadas para colocar el QR en la posición exacta del reverso original
-    qr_size = 3.0 * cm
-    x = 1.2 * cm
-    y = mediabox.height - 4.2 * cm
+    qr_size = 3.2 * cm
+    x = 0.9 * cm
+    y = mediabox.height - 0.6 * cm
 
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(mediabox.width, mediabox.height))
