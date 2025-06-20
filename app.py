@@ -3,6 +3,7 @@ from pypdf import PdfReader, PdfWriter, PageObject
 from reportlab.pdfgen import canvas
 from reportlab.graphics.barcode import code128
 from reportlab.lib.units import cm
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.utils import ImageReader
 from PIL import Image
 import qrcode
@@ -11,9 +12,6 @@ import zipfile
 import os
 import random
 import sys
-import fitz
-import re
-import unicodedata
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "supersecretkey")
@@ -64,13 +62,20 @@ def detectar_estado(texto):
         "OAXACA", "PUEBLA", "QUERETARO", "QUINTANA ROO", "SAN LUIS POTOSI", "SINALOA",
         "SONORA", "TABASCO", "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS"
     ]
-    texto = texto.upper()
+
+    texto_region = texto.extract_text() if hasattr(texto, 'extract_text') else str(texto)
+    texto_region = texto_region.upper()
+
     for estado in estados:
-        if f"DEL ESTADO DE {estado}" in texto or f"CODIGO CIVIL DEL ESTADO DE {estado}" in texto:
+        if f"CODIGO CIVIL DEL ESTADO DE {estado}" in texto_region:
             return estado
+        if f"DEL ESTADO DE {estado}" in texto_region:
+            return estado
+
     for estado in estados:
-        if estado in texto:
+        if estado in texto_region:
             return estado
+
     return None
 
 def detectar_tipo_documento(texto):
@@ -80,17 +85,9 @@ def detectar_tipo_documento(texto):
     return 'nacimiento'
 
 def extraer_curp(texto):
-    texto = texto.replace("\n", "").replace("\r", "").upper()
-    texto = unicodedata.normalize("NFD", texto)
-    texto = texto.encode("ascii", "ignore").decode("utf-8")
-    print(f"[DEPURAR] Texto limpio para CURP: {texto[:300]}")
-    posibles = re.findall(r'[A-Z]{4}\s*\d{6}\s*[HM]\s*[A-Z]{5}\s*\d{2}', texto)
-    if posibles:
-        curp_limpia = re.sub(r'\s+', '', posibles[0])
-        print(f"[DEPURAR] CURP flexible detectada: {curp_limpia}")
-        return curp_limpia
-    print("[DEPURAR] CURP no detectada.")
-    return None
+    import re
+    match = re.search(r'\b[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}\b', texto)
+    return match.group(0) if match else None
 
 def generar_qr_con_texto(curp, mediabox):
     qr_img = qrcode.make(curp)
@@ -114,15 +111,25 @@ def generar_folio_pdf(mediabox):
     folio_num = ''.join(str(random.randint(0, 9)) for _ in range(8))
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(mediabox.width, mediabox.height))
-    y_start = mediabox.height - 2 * cm
+    margin_x = 0 * cm
+    margin_y = 2.0 * cm
+    block_width = 6 * cm
+    y_start = mediabox.height - margin_y
     c.setFont("Helvetica-Bold", 14)
     c.setFillColorRGB(1, 0, 0)
-    c.drawString(1 * cm, y_start, "FOLIO")
+    text_folio = "FOLIO"
+    text_folio_width = c.stringWidth(text_folio, "Helvetica-Bold", 14)
+    folio_x = margin_x + (block_width - text_folio_width) / 2
+    c.drawString(folio_x, y_start, text_folio)
     c.setFont("Helvetica", 16)
     c.setFillColorRGB(0, 0, 0)
-    c.drawString(1 * cm, y_start - 18, folio_num)
+    folio_num_width = c.stringWidth(folio_num, "Helvetica", 16)
+    folio_num_x = margin_x + (block_width - folio_num_width) / 2
+    c.drawString(folio_num_x, y_start - 18, folio_num)
     barcode = code128.Code128(folio_num, barHeight=25, barWidth=0.6)
-    barcode.drawOn(c, 1 * cm, y_start - 50)
+    barcode_x = margin_x + (block_width - barcode.width) / 2
+    barcode_y = y_start - 18 - 30
+    barcode.drawOn(c, barcode_x, barcode_y)
     c.save()
     packet.seek(0)
     overlay_pdf = PdfReader(packet)
@@ -140,24 +147,19 @@ def merge_pdfs():
     processed_files = []
     mensajes = []
     for original_file in original_files:
-        original_file.seek(0)
-        fitz_doc = fitz.open(stream=original_file.read(), filetype="pdf")
-        texto_pagina = ""
-        for page in fitz_doc:
-            texto_pagina += page.get_text()
-        fitz_doc.close()
-        original_file.seek(0)
         original_pdf_reader = PdfReader(original_file)
         writer = PdfWriter()
         if not original_pdf_reader.pages:
             continue
         first_page = convert_to_pageobject(original_pdf_reader.pages[0])
+        texto_pagina = first_page.extract_text() or ""
         tipo_doc = detectar_tipo_documento(texto_pagina)
-        estado_detectado = detectar_estado(texto_pagina) if agregar_reverso else None
+        estado_detectado = detectar_estado(first_page) if agregar_reverso else None
         curp = extraer_curp(texto_pagina)
         marco_file = 'pdfs/MARCO DEFUNCION ORIGINAL.pdf' if tipo_doc == 'defuncion' else 'pdfs/MARCO NACIMIENTO ORIGINAL.pdf'
         with open(resource_path(marco_file), 'rb') as f:
-            base_overlay = PdfReader(io.BytesIO(f.read())).pages[0]
+            base_pdf_bytes = f.read()
+        base_overlay = PdfReader(io.BytesIO(base_pdf_bytes)).pages[0]
         base_overlay.mediabox = first_page.mediabox
         base_copy = PageObject.create_blank_page(
             width=first_page.mediabox.width,
@@ -176,7 +178,8 @@ def merge_pdfs():
             reverso_path = resource_path(f'pdfs/reversos/{estado_detectado}.pdf')
             if os.path.exists(reverso_path):
                 with open(reverso_path, 'rb') as f:
-                    reverso_page = PdfReader(io.BytesIO(f.read())).pages[0]
+                    reverso_reader = PdfReader(io.BytesIO(f.read()))
+                reverso_page = reverso_reader.pages[0]
                 reverso_page.mediabox = base_copy.mediabox
                 if curp:
                     qr_overlay = generar_qr_con_texto(curp, base_copy.mediabox)
