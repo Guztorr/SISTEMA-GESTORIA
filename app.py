@@ -88,21 +88,23 @@ def extraer_curp(texto):
     import re
     import unicodedata
 
-    # Limpieza avanzada
+    # Limpieza del texto
     texto = texto.replace("\n", "").replace("\r", "").replace("\t", "").replace(" ", "").upper()
     texto = unicodedata.normalize("NFD", texto)
     texto = texto.encode("ascii", "ignore").decode("utf-8")
 
     print(f"[DEPURAR] Texto limpio para CURP: {texto[:300]}")
 
-    # Regex con tolerancia a espacios invisibles ya eliminados
-    match = re.search(r'[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}', texto)
+    # Regex relajada: busca secuencias CURP-like sin validar a fondo estructura oficial
+    match = re.search(r'[A-Z]{4}\d{6}[A-Z0-9]{8}', texto)
     if match:
-        print(f"[DEPURAR] CURP detectada: {match.group(0)}")
-        return match.group(0)
+        curp_detectada = match.group(0)
+        print(f"[DEPURAR] CURP flexible detectada (no validada): {curp_detectada}")
+        return curp_detectada
 
     print("[DEPURAR] CURP no detectada.")
     return None
+
 
 def generar_qr_con_texto(curp, mediabox):
     qr_img = qrcode.make(curp)
