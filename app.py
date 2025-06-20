@@ -107,7 +107,10 @@ def extraer_curp(texto):
 
 
 def generar_qr_con_texto(curp, mediabox):
-    from reportlab.lib.utils import ImageReader
+    qr_size = 3 * cm
+    margin_left = 0.5 * cm
+    margin_top = 0.5 * cm
+    margin_text = 0.1 * cm  # espacio entre QR y texto
 
     qr_img = qrcode.make(curp)
     buffer = io.BytesIO()
@@ -115,20 +118,33 @@ def generar_qr_con_texto(curp, mediabox):
     buffer.seek(0)
     img = ImageReader(buffer)
 
-    # Tamaño del QR
-    qr_size = 3.4 * cm
-
-    # 🔁 Posición en esquina superior izquierda (ajustable según necesidades)
-    x = 0.8 * cm
-    y = mediabox.height - qr_size - 0.4 * cm  # margen desde arriba
-
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(mediabox.width, mediabox.height))
+
+    x = margin_left
+    y = mediabox.height - qr_size - margin_top
+
+    # Dibuja el QR
     c.drawImage(img, x, y, width=qr_size, height=qr_size, mask='auto')
 
-    # Texto centrado debajo del QR
-    c.setFont("Helvetica", 9)
-    c.drawCentredString(x + qr_size / 2, y - 12, curp)
+    # Calcula tamaño máximo de fuente para que el texto quepa dentro de qr_size
+    max_width = qr_size
+    font_name = "Helvetica"
+    font_size = 20  # punto inicial para iterar
+
+    while True:
+        text_width = c.stringWidth(curp, font_name, font_size)
+        if text_width <= max_width or font_size <= 1:
+            break
+        font_size -= 0.5
+
+    # Posiciona el texto debajo del QR, alineado a la izquierda del QR
+    text_x = x
+    text_y = y - font_size - margin_text
+
+    c.setFont(font_name, font_size)
+    c.drawString(text_x, text_y, curp)
+
     c.save()
     packet.seek(0)
 
