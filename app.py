@@ -86,7 +86,7 @@ def detectar_tipo_documento(texto):
 
 def extraer_curp(texto):
     import re
-    match = re.search(r'\b[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}\b', texto)
+    match = re.findall(r'[A-Z]{4}\\s*\\d{6}\\s*[HM]\\s*[A-Z]{5}\\s*\\d{2}', texto)
     return match.group(0) if match else None
 
 def generar_qr_con_texto(curp, mediabox):
