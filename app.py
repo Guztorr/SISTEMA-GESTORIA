@@ -120,7 +120,7 @@ def generar_qr_con_texto(curp, mediabox):
 
     # 🔁 Posición en esquina superior izquierda (ajustable según necesidades)
     x = 0.8 * cm
-    y = mediabox.height - qr_size - 0.5 * cm  # margen desde arriba
+    y = mediabox.height - qr_size - 0.4 * cm  # margen desde arriba
 
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(mediabox.width, mediabox.height))
