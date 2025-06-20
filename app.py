@@ -13,6 +13,8 @@ import os
 import random
 import sys
 import fitz  # PyMuPDF para extracción de texto confiable
+import re
+import unicodedata
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "supersecretkey")
@@ -85,17 +87,17 @@ def detectar_tipo_documento(texto):
     return 'nacimiento'
 
 def extraer_curp(texto):
-    import re
+    # Limpiar texto de espacios, saltos, acentos y convertir a mayúsculas
+    texto = texto.replace("
+", "").replace("
+", "").replace(" ", "").upper()
+    texto = unicodedata.normalize("NFD", texto)
+    texto = texto.encode("ascii", "ignore").decode("utf-8")
 
-    # 🔧 Eliminar saltos de línea y espacios innecesarios
-    texto = texto.replace("\n", "").replace("\r", "").replace(" ", "").upper()
-
-    print(f"[DEBUG] Texto normalizado para CURP: {texto[:200]}")  # Para inspección
-
-    # CURP: 4 letras + 6 dígitos + H/M + 5 letras + 2 dígitos
+    print(f"[DEPURAR] Texto limpio para CURP: {texto[:200]}")
     match = re.search(r'[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}', texto)
     if match:
-        print(f"[DEBUG] CURP detectada: {match.group(0)}")
+        print(f"[DEPURAR] CURP detectada: {match.group(0)}")
     return match.group(0) if match else None
 
 
