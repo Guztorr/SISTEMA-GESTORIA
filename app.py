@@ -86,8 +86,12 @@ def detectar_tipo_documento(texto):
 
 def extraer_curp(texto):
     import re
+    print(f"[DEBUG] Buscando CURP en: {texto[:500]}")  # limitar para no llenar el log
     match = re.search(r'\b[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}\b', texto)
+    if match:
+        print(f"[DEBUG] CURP detectada: {match.group(0)}")
     return match.group(0) if match else None
+
 
 def generar_qr_con_texto(curp, mediabox):
     qr_size = 3 * cm
