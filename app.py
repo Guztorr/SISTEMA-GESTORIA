@@ -116,11 +116,11 @@ def generar_qr_con_texto(curp, mediabox):
     img = ImageReader(buffer)
 
     # Tamaño del QR
-    qr_size = 3.3 * cm
+    qr_size = 3.4 * cm
 
     # 🔁 Posición en esquina superior izquierda (ajustable según necesidades)
-    x = 0.9 * cm
-    y = mediabox.height - qr_size - 0.6 * cm  # margen desde arriba
+    x = 0.8 * cm
+    y = mediabox.height - qr_size - 0.5 * cm  # margen desde arriba
 
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(mediabox.width, mediabox.height))
