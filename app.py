@@ -12,6 +12,7 @@ import zipfile
 import os
 import random
 import sys
+import fitz  # PyMuPDF para extracción de texto confiable
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "supersecretkey")
@@ -63,8 +64,7 @@ def detectar_estado(texto):
         "SONORA", "TABASCO", "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS"
     ]
 
-    texto_region = texto.extract_text() if hasattr(texto, 'extract_text') else str(texto)
-    texto_region = texto_region.upper()
+    texto_region = texto.upper()
 
     for estado in estados:
         if f"CODIGO CIVIL DEL ESTADO DE {estado}" in texto_region:
@@ -92,12 +92,11 @@ def extraer_curp(texto):
         print(f"[DEBUG] CURP detectada: {match.group(0)}")
     return match.group(0) if match else None
 
-
 def generar_qr_con_texto(curp, mediabox):
     qr_size = 3 * cm
     margin_left = 0.5 * cm
     margin_top = 0.5 * cm
-    margin_text = 0.1 * cm  # espacio entre QR y texto
+    margin_text = 0.1 * cm
 
     qr_img = qrcode.make(curp)
     buffer = io.BytesIO()
@@ -111,24 +110,19 @@ def generar_qr_con_texto(curp, mediabox):
     x = margin_left
     y = mediabox.height - qr_size - margin_top
 
-    # Dibuja el QR
     c.drawImage(img, x, y, width=qr_size, height=qr_size, mask='auto')
 
-    # Calcula tamaño máximo de fuente para que el texto quepa dentro de qr_size
-    max_width = qr_size
     font_name = "Helvetica"
-    font_size = 20  # punto inicial para iterar
+    font_size = 20
 
     while True:
         text_width = c.stringWidth(curp, font_name, font_size)
-        if text_width <= max_width or font_size <= 1:
+        if text_width <= qr_size or font_size <= 1:
             break
         font_size -= 0.5
 
-    # Posiciona el texto debajo del QR, alineado a la izquierda del QR
     text_x = x
     text_y = y - font_size - margin_text
-
     c.setFont(font_name, font_size)
     c.drawString(text_x, text_y, curp)
 
@@ -173,38 +167,54 @@ def merge_pdfs():
     original_files = request.files.getlist('original_pdfs')
     agregar_reverso = request.form.get('reverso', 'no').lower() == 'si'
     agregar_folio = request.form.get('folio', 'no').lower() == 'si'
+
     if len(original_files) > 20:
         return "No puedes subir más de 20 archivos.", 400
+
     processed_files = []
     mensajes = []
+
     for original_file in original_files:
+        original_file.seek(0)
+        fitz_doc = fitz.open(stream=original_file.read(), filetype="pdf")
+        texto_pagina = fitz_doc[0].get_text()
+        fitz_doc.close()
+        original_file.seek(0)
+
         original_pdf_reader = PdfReader(original_file)
         writer = PdfWriter()
+
         if not original_pdf_reader.pages:
             continue
+
         first_page = convert_to_pageobject(original_pdf_reader.pages[0])
-        texto_pagina = first_page.extract_text() or ""
         tipo_doc = detectar_tipo_documento(texto_pagina)
-        estado_detectado = detectar_estado(first_page) if agregar_reverso else None
+        estado_detectado = detectar_estado(texto_pagina) if agregar_reverso else None
         curp = extraer_curp(texto_pagina)
+
         marco_file = 'pdfs/MARCO DEFUNCION ORIGINAL.pdf' if tipo_doc == 'defuncion' else 'pdfs/MARCO NACIMIENTO ORIGINAL.pdf'
         with open(resource_path(marco_file), 'rb') as f:
             base_pdf_bytes = f.read()
         base_overlay = PdfReader(io.BytesIO(base_pdf_bytes)).pages[0]
         base_overlay.mediabox = first_page.mediabox
+
         base_copy = PageObject.create_blank_page(
             width=first_page.mediabox.width,
             height=first_page.mediabox.height
         )
         base_copy.merge_page(base_overlay)
         base_copy.merge_page(first_page)
+
         if agregar_folio:
             folio_overlay = generar_folio_pdf(base_copy.mediabox)
             base_copy.merge_page(folio_overlay)
             mensajes.append(f"{original_file.filename}: Folio generado")
+
         writer.add_page(base_copy)
+
         for i in range(1, len(original_pdf_reader.pages)):
             writer.add_page(original_pdf_reader.pages[i])
+
         if estado_detectado:
             reverso_path = resource_path(f'pdfs/reversos/{estado_detectado}.pdf')
             if os.path.exists(reverso_path):
@@ -212,18 +222,21 @@ def merge_pdfs():
                     reverso_reader = PdfReader(io.BytesIO(f.read()))
                 reverso_page = reverso_reader.pages[0]
                 reverso_page.mediabox = base_copy.mediabox
+
                 if curp:
                     qr_overlay = generar_qr_con_texto(curp, base_copy.mediabox)
                     reverso_page.merge_page(qr_overlay)
                     mensajes.append(f"{original_file.filename}: QR con CURP agregado")
                 else:
                     mensajes.append(f"{original_file.filename}: CURP no detectada, no se agregó QR")
+
                 writer.add_page(reverso_page)
                 mensajes.append(f"{original_file.filename}: Reverso agregado ({estado_detectado})")
             else:
                 mensajes.append(f"{original_file.filename}: Estado detectado pero reverso no encontrado")
         elif agregar_reverso:
             mensajes.append(f"{original_file.filename}: No se detectó estado para reverso")
+
         output_pdf = io.BytesIO()
         writer.write(output_pdf)
         output_pdf.seek(0)
@@ -231,10 +244,13 @@ def merge_pdfs():
             "filename": f"Act_{original_file.filename}",
             "content": output_pdf
         })
+
     if not processed_files:
         return "No se procesó ningún archivo válido.", 400
+
     for m in mensajes:
         print(m)
+
     if len(processed_files) == 1:
         return send_file(
             processed_files[0]["content"],
@@ -242,11 +258,13 @@ def merge_pdfs():
             as_attachment=True,
             download_name=processed_files[0]["filename"]
         )
+
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w') as zipf:
         for file in processed_files:
             file["content"].seek(0)
             zipf.writestr(file["filename"], file["content"].read())
+
     zip_buffer.seek(0)
     return send_file(
         zip_buffer,
