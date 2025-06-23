@@ -12,18 +12,35 @@ import zipfile
 import os
 import random
 import sys
+import json
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "supersecretkey")
 
-USERNAME = os.environ.get("APP_USER", "admin")
-PASSWORD = os.environ.get("APP_PASSWORD", "1234")
+USERS_FILE = "usuarios.json"
+DEFAULT_USER = {"admin": "1234"}
+
+if not os.path.exists(USERS_FILE):
+    with open(USERS_FILE, "w") as f:
+        json.dump(DEFAULT_USER, f)
+
+def load_users():
+    with open(USERS_FILE, "r") as f:
+        return json.load(f)
+
+def save_users(users):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        if request.form.get('username') == USERNAME and request.form.get('password') == PASSWORD:
+        users = load_users()
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if users.get(username) == password:
             session['authenticated'] = True
+            session['username'] = username
             return redirect(url_for('index'))
         return render_template("login.html", error="Credenciales incorrectas")
     return render_template("login.html")
@@ -31,7 +48,45 @@ def login():
 @app.route('/logout', methods=['POST'])
 def logout():
     session.pop('authenticated', None)
+    session.pop('username', None)
     return redirect(url_for('login'))
+
+@app.route('/crear_usuario', methods=['POST'])
+def crear_usuario():
+    if session.get('username') != 'admin':
+        return "No autorizado", 403
+    nuevo_usuario = request.form.get('nuevo_usuario')
+    nueva_contraseña = request.form.get('nueva_contraseña')
+    users = load_users()
+    if nuevo_usuario in users:
+        return render_template(
+            "index.html",
+            username=session.get('username'),
+            mensaje_crear="El usuario ya existe"
+        )
+    users[nuevo_usuario] = nueva_contraseña
+    save_users(users)
+    return redirect(url_for('index'))
+
+@app.route('/eliminar_usuario', methods=['POST'])
+def eliminar_usuario():
+    if session.get('username') != 'admin':
+        return "No autorizado", 403
+    usuario_a_eliminar = request.form.get('usuario_a_eliminar')
+    users = load_users()
+    if usuario_a_eliminar in users and usuario_a_eliminar != 'admin':
+        del users[usuario_a_eliminar]
+        save_users(users)
+    return redirect(url_for('index'))
+
+@app.before_request
+def require_login():
+    if request.endpoint not in ('login', 'static') and not session.get('authenticated'):
+        return redirect(url_for('login'))
+
+@app.route('/')
+def index():
+    return render_template("index.html", username=session.get('username'))
 
 @app.before_request
 def require_login():
@@ -44,10 +99,6 @@ def resource_path(relative_path):
     else:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
-
-@app.route('/')
-def index():
-    return render_template("index.html")
 
 def convert_to_pageobject(page):
     if isinstance(page, dict):
