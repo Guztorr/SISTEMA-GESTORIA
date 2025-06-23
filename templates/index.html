@@ -6,27 +6,130 @@
     <title>SISTEMA YAZARETH</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <style>
+.panel-toggle {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: #02dffc;
+    color: #000e14;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    z-index: 10;
+    transition: left 0.3s ease;
+}
+
+/* Cuando el panel está abierto, mover el botón */
+.panel-toggle.shifted {
+    left: 300px;
+}
+
+
+        .panel-admin {
+            position: fixed;
+            top: 0;
+            left: -300px;
+            width: 280px;
+            height: 100%;
+            background-color: #1c2733;
+            color: white;
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+            transition: left 0.3s ease;
+            z-index: 9;
+        }
+
+        .panel-admin.open {
+            left: 0;
+        }
+
+        .panel-admin h3 {
+            margin-top: 0;
+            font-size: 22px;
+            color: #00ff6a;
+        }
+
+        .panel-admin form {
+            margin-bottom: 20px;
+        }
+
+        .panel-admin input {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
-    <div class="contenedor-cuadro">
-        <h2 id="titulo">GESTORIA YAZARETH</h2>
-        <form action="{{ url_for('merge_pdfs') }}" method="post" enctype="multipart/form-data">
-            <input type="file" name="original_pdfs" accept="application/pdf" multiple required><br><br>
-            <label for="reverso">¿Agregar reverso?</label>
-            <select name="reverso" id="reverso">
-                <option value="no">No</option>
-                <option value="si">Sí</option>
-            </select><br><br>
-            <label for="folio">¿Agregar folio?</label>
-            <select name="folio" id="folio">
-                <option value="no">No</option>
-                <option value="si">Sí</option>
-            </select><br><br>
-            <button type="submit">Procesar PDFs</button>
-        </form>
-        <form action="{{ url_for('logout') }}" method="post" style="margin-top: 30px;">
-            <button type="submit" class="btn-logout">Cerrar sesión</button>
-        </form>
-    </div>
+
+<button class="panel-toggle" id="panelToggle" onclick="togglePanel()">
+    <span id="menu-icon">☰</span>
+</button>
+
+
+{% if username == 'admin' %}
+<div id="adminPanel" class="panel-admin">
+    <h3>Administrar Usuarios</h3>
+    <form action="{{ url_for('crear_usuario') }}" method="post">
+        <input type="text" name="nuevo_usuario" placeholder="Nuevo usuario" required>
+        <input type="password" name="nueva_contraseña" placeholder="Contraseña" required>
+        <button type="submit">Crear Usuario</button>
+    </form>
+    <form action="{{ url_for('eliminar_usuario') }}" method="post">
+        <input type="text" name="usuario_a_eliminar" placeholder="Usuario a eliminar" required>
+        <button type="submit">Eliminar Usuario</button>
+    {% if mensaje_crear %}
+        <p id="mensajeTemporal" class="mensaje-panel">{{ mensaje_crear }}</p>
+    {% endif %}
+    </form>
+</div>
+{% endif %}
+
+<div class="contenedor-cuadro">
+    <h2 id="titulo">GESTORIA YAZARETH</h2>
+    <form action="{{ url_for('merge_pdfs') }}" method="post" enctype="multipart/form-data">
+        <input type="file" name="original_pdfs" accept="application/pdf" multiple required><br><br>
+        <label for="reverso">¿Agregar reverso?</label>
+        <select name="reverso" id="reverso">
+            <option value="no">No</option>
+            <option value="si">Sí</option>
+        </select><br><br>
+        <label for="folio">¿Agregar folio?</label>
+        <select name="folio" id="folio">
+            <option value="no">No</option>
+            <option value="si">Sí</option>
+        </select><br><br>
+        <button type="submit">Procesar PDFs</button>
+    </form>
+    <form action="{{ url_for('logout') }}" method="post" style="margin-top: 30px;">
+        <button type="submit" class="btn-logout">Cerrar sesión</button>
+    </form>
+</div>
+
+<script>
+    function togglePanel() {
+        const panel = document.getElementById('adminPanel');
+        const toggleBtn = document.getElementById('panelToggle');
+        const icon = document.getElementById('menu-icon');
+
+        const isOpen = panel.classList.toggle('open');
+
+        // Cambiar ícono y mover el botón
+        icon.textContent = isOpen ? '✖' : '☰';
+        toggleBtn.classList.toggle('shifted', isOpen);
+    }
+
+    // Mensaje temporal
+    window.addEventListener('DOMContentLoaded', () => {
+        const mensaje = document.getElementById('mensajeTemporal');
+        if (mensaje) {
+            setTimeout(() => {
+                mensaje.style.display = 'none';
+            }, 3000);
+        }
+    });
+</script>
+
 </body>
 </html>
