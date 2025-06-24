@@ -222,7 +222,7 @@ def generar_folio_pdf(mediabox):
     folio_num_width = c.stringWidth(folio_num, "Helvetica", 16)
     folio_num_x = margin_x + (block_width - folio_num_width) / 2
     c.drawString(folio_num_x, y_start - 18, folio_num)
-    barcode = code128.Code128(folio_num, barHeight=25, barWidth=0.6)
+    barcode = code128.Code128(folio_num, barHeight=12.5, barWidth=1.2)
     barcode_x = margin_x + (block_width - barcode.width) / 2
     barcode_y = y_start - 18 - 30
     barcode.drawOn(c, barcode_x, barcode_y)
