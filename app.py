@@ -208,13 +208,13 @@ def generar_folio_pdf(mediabox):
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(mediabox.width, mediabox.height))
 
-    margin_x = 1 * cm
+    margin_x = 1 * cm  # movido 1 cm a la derecha
     margin_y = 2.0 * cm
     block_width = 6 * cm
     y_start = mediabox.height - margin_y
 
     # Texto "FOLIO"
-    c.setFont("Helvetica-Bold", 12)
+    c.setFont("Helvetica-Bold", 12)  # reducido de 14 a 12 pt
     c.setFillColorRGB(1, 0, 0)
     text_folio = "FOLIO"
     text_folio_width = c.stringWidth(text_folio, "Helvetica-Bold", 12)
@@ -222,20 +222,18 @@ def generar_folio_pdf(mediabox):
     c.drawString(folio_x, y_start, text_folio)
 
     # Número de folio
-    c.setFont("Helvetica", 13)
+    c.setFont("Helvetica", 13)  # reducido de 16 a 13 pt
     c.setFillColorRGB(0, 0, 0)
     folio_num_width = c.stringWidth(folio_num, "Helvetica", 13)
     folio_num_x = margin_x + (block_width - folio_num_width) / 2
     c.drawString(folio_num_x, y_start - 18, folio_num)
 
-    # Código de barras ajustado
+    # Código de barras
     bar_height = 12.5
     bar_width = 1.2
     barcode = code128.Code128(folio_num, barHeight=bar_height, barWidth=bar_width)
     barcode_x = margin_x + (block_width - barcode.width) / 2
-
-    # Ajustamos para mantener la posición visual anterior
-    barcode_y = y_start - 18 - (30 - (25 - bar_height))  # = y_start - 18 - 17.5
+    barcode_y = y_start - 18 - 30 + (25 - bar_height)
     barcode.drawOn(c, barcode_x, barcode_y)
 
     c.save()
