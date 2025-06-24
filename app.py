@@ -208,7 +208,7 @@ def generar_folio_pdf(mediabox):
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(mediabox.width, mediabox.height))
 
-    margin_x = 0 * cm
+    margin_x = 1 * cm
     margin_y = 2.0 * cm
     block_width = 6 * cm
     y_start = mediabox.height - margin_y
