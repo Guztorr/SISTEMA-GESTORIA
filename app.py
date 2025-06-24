@@ -214,7 +214,7 @@ def generar_folio_pdf(mediabox):
     y_start = mediabox.height - margin_y
 
     # Texto "FOLIO"
-    c.setFont("Helvetica-Bold", 14)
+    c.setFont("Helvetica-Bold", 12)
     c.setFillColorRGB(1, 0, 0)
     text_folio = "FOLIO"
     text_folio_width = c.stringWidth(text_folio, "Helvetica-Bold", 12)
@@ -222,9 +222,9 @@ def generar_folio_pdf(mediabox):
     c.drawString(folio_x, y_start, text_folio)
 
     # Número de folio
-    c.setFont("Helvetica", 16)
+    c.setFont("Helvetica", 13)
     c.setFillColorRGB(0, 0, 0)
-    folio_num_width = c.stringWidth(folio_num, "Helvetica", 14)
+    folio_num_width = c.stringWidth(folio_num, "Helvetica", 13)
     folio_num_x = margin_x + (block_width - folio_num_width) / 2
     c.drawString(folio_num_x, y_start - 18, folio_num)
 
