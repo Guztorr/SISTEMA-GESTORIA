@@ -215,7 +215,7 @@ def generar_folio_pdf(mediabox):
 
     # Texto "FOLIO"
     c.setFont("Helvetica-Bold", 12)
-    c.setFillColorRGB(1, 0, 0)
+    c.setFillColorRGB(0, 0, 0)
     text_folio = "FOLIO"
     text_folio_width = c.stringWidth(text_folio, "Helvetica-Bold", 12)
     folio_x = margin_x + (block_width - text_folio_width) / 2
